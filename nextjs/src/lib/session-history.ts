@@ -149,7 +149,14 @@ export class AdkSessionService {
 
         // Agent Engine sessions API returns sessions with 'name' field, need to extract ID
         // Add defensive programming to handle various response formats
-        let rawSessions: any[] = [];
+        interface RawSessionData {
+          name?: string;
+          createTime?: string;
+          updateTime?: string;
+          userId?: string;
+        }
+        
+        let rawSessions: RawSessionData[] = [];
         
         if (responseData && typeof responseData === 'object') {
           if (Array.isArray(responseData.sessions)) {
@@ -178,13 +185,8 @@ export class AdkSessionService {
           };
         }
 
-        const sessions: AdkSession[] = rawSessions.map(
-          (session: {
-            name?: string;
-            createTime?: string;
-            updateTime?: string;
-            userId?: string;
-          }) => {
+        const sessions: AdkSession[] = rawSessions
+          .map((session: RawSessionData) => {
             // Extract session ID from name field: "projects/.../sessions/SESSION_ID"
             const sessionId = session.name
               ? session.name.split("/sessions/")[1]
@@ -193,16 +195,12 @@ export class AdkSessionService {
             return {
               id: sessionId,
               app_name: getAdkAppName(), // Add app_name for compatibility
-              user_id: session.userId,
-              state: null,
-              last_update_time: session.updateTime || session.createTime,
-              // Keep original fields for reference
-              name: session.name,
-              createTime: session.createTime,
-              updateTime: session.updateTime,
+              user_id: session.userId || '',
+              state: null as Record<string, unknown> | null,
+              last_update_time: session.updateTime || session.createTime || null,
             };
-          }
-        );
+          })
+          .filter((session): session is AdkSession => session.id !== null); // Filter out sessions with null IDs
 
         console.log("✅ [ADK SESSION SERVICE] Agent Engine sessions processed:", {
           sessionsCount: sessions.length,
