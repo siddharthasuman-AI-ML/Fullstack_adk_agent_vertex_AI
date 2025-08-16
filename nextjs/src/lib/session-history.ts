@@ -138,8 +138,46 @@ export class AdkSessionService {
 
         const responseData = await response.json();
 
+        // Log the raw response to understand the structure
+        console.log("🔍 [ADK SESSION SERVICE] Agent Engine raw response data:", {
+          responseData,
+          responseDataType: typeof responseData,
+          hasSessions: responseData && typeof responseData === 'object' && 'sessions' in responseData,
+          sessionsIsArray: Array.isArray(responseData?.sessions),
+          responseDataIsArray: Array.isArray(responseData)
+        });
+
         // Agent Engine sessions API returns sessions with 'name' field, need to extract ID
-        const rawSessions = responseData.sessions || responseData || [];
+        // Add defensive programming to handle various response formats
+        let rawSessions: any[] = [];
+        
+        if (responseData && typeof responseData === 'object') {
+          if (Array.isArray(responseData.sessions)) {
+            rawSessions = responseData.sessions;
+          } else if (Array.isArray(responseData)) {
+            rawSessions = responseData;
+          } else if (responseData.sessions && typeof responseData.sessions === 'object') {
+            // Handle case where sessions might be an object instead of array
+            console.warn("⚠️ [ADK SESSION SERVICE] Sessions is an object, not an array:", responseData.sessions);
+            rawSessions = [];
+          }
+        }
+
+        console.log("🔍 [ADK SESSION SERVICE] Processed rawSessions:", {
+          rawSessions,
+          rawSessionsLength: rawSessions.length,
+          rawSessionsIsArray: Array.isArray(rawSessions)
+        });
+
+        // Only proceed with mapping if we have a valid array
+        if (!Array.isArray(rawSessions)) {
+          console.warn("⚠️ [ADK SESSION SERVICE] No valid sessions array found, returning empty result");
+          return {
+            sessions: [],
+            sessionIds: [],
+          };
+        }
+
         const sessions: AdkSession[] = rawSessions.map(
           (session: {
             name?: string;
@@ -166,10 +204,15 @@ export class AdkSessionService {
           }
         );
 
+        console.log("✅ [ADK SESSION SERVICE] Agent Engine sessions processed:", {
+          sessionsCount: sessions.length,
+          sessionIds: sessions.map(s => s.id).filter(Boolean)
+        });
+
         return {
           sessions: Array.isArray(sessions) ? sessions : [],
           sessionIds: Array.isArray(sessions)
-            ? sessions.map((session) => session.id)
+            ? sessions.map((session) => session.id).filter(Boolean)
             : [],
         };
       } catch (error) {

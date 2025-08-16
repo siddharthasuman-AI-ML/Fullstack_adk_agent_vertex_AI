@@ -65,14 +65,16 @@ export function SessionSelector({
             sessionsCount: result.sessions.length,
           });
 
-          // Convert ADK sessions to Session format
-          const activeSessions: Session[] = result.sessions.map((session) => ({
-            id: session.id,
-            userId: session.userId,
-            lastActivity: session.lastUpdateTime || new Date(),
-            title: session.title || `Session ${session.id.substring(0, 8)}`,
-            messageCount: session.messageCount, // Now using real message count from backend
-          }));
+          // Convert ADK sessions to Session format with additional validation
+          const activeSessions: Session[] = result.sessions
+            .filter(session => session && session.id) // Filter out invalid sessions
+            .map((session) => ({
+              id: session.id,
+              userId: session.userId,
+              lastActivity: session.lastUpdateTime || new Date(),
+              title: session.title || `Session ${session.id.substring(0, 8)}`,
+              messageCount: session.messageCount || 0, // Now using real message count from backend
+            }));
 
           // Sort by last activity (most recent first)
           activeSessions.sort(

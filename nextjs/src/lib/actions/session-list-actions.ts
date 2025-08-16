@@ -29,9 +29,24 @@ export async function fetchActiveSessionsAction(
     // Fetch sessions from ADK backend (server-side)
     const result = await listUserSessions(userId);
 
-    // Fetch session details with events for each session in parallel to get real message counts
+    // Add defensive programming to handle empty or malformed sessions
+    if (!result || !result.sessions || !Array.isArray(result.sessions)) {
+      console.warn("⚠️ [SESSION_LIST_ACTION] No valid sessions returned from backend");
+      return {
+        success: true,
+        sessions: [],
+      };
+    }
 
-    const sessionDetailsPromises = result.sessions.map(async (session) => {
+    console.log("🔍 [SESSION_LIST_ACTION] Processing sessions:", {
+      sessionsCount: result.sessions.length,
+      sessionIds: result.sessions.map(s => s.id).filter(Boolean)
+    });
+
+    // Fetch session details with events for each session in parallel to get real message counts
+    const sessionDetailsPromises = result.sessions
+      .filter(session => session && session.id) // Filter out invalid sessions
+      .map(async (session) => {
       try {
         const sessionWithEvents = await getSessionWithEvents(
           userId,
